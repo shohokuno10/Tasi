@@ -1,62 +1,18 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import multiprocessing
+import pandas_ta as ta
 import datetime
-from functools import partial
-import os
-#import talib
 from dateutil.relativedelta import relativedelta
 import glob
 import requests
-
-#import streamlit as st
-#import requests
-#import os
-import sys
-import subprocess
-
-# check if the library folder already exists, to avoid building everytime you load the pahe
-if not os.path.isdir("/tmp/ta-lib"):
-
-    # Download ta-lib to disk
-    with open("/tmp/ta-lib-0.4.0-src.tar.gz", "wb") as file:
-        response = requests.get(
-            "http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz"
-        )
-        file.write(response.content)
-    # get our current dir, to configure it back again. Just house keeping
-    default_cwd = os.getcwd()
-    os.chdir("/tmp")
-    # untar
-    os.system("tar -zxvf ta-lib-0.4.0-src.tar.gz")
-    os.chdir("/tmp/ta-lib")
-    os.system("ls -la /app/equity/")
-    # build
-    os.system("./configure --prefix=/home/appuser")
-    os.system("make")
-    # install
-    os.system("make install")
-    # back to the cwd
-    os.chdir(default_cwd)
-    sys.stdout.flush()
-
-# add the library to our current environment
-from ctypes import *
-
-lib = CDLL("/home/appuser/lib/libta_lib.so.0.0.0")
-# import library
-try:
-    import talib
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--global-option=build_ext", "--global-option=-L/home/appuser/lib/", "--global-option=-I/home/appuser/include/", "ta-lib"])
-finally:
-    import talib
+import os
 
 np.set_printoptions(suppress=True)
 pd.set_option('display.float_format', '{:.0f}'.format)
-timestart=datetime.datetime.now()
-thisdate='2024-05-27'
+timestart = datetime.datetime.now()
+thisdate = '2024-05-27'
+
 def lineNotifyMessage(token, msg):
     headers = {
         "Authorization": "Bearer " + token,
@@ -65,19 +21,6 @@ def lineNotifyMessage(token, msg):
     payload = {'message': msg}
     r = requests.post("https://notify-api.line.me/api/notify", headers=headers, params=payload)
     return r.status_code
-
-def nowtimeKBAR(stocno):
-    dayk1 = pd.DataFrame()
-    file_list = os.listdir("c:/個股拍/" + str(stocno) + "/")
-    if file_list and file_list[-1] == thisdate.replace("-", "") + ".csv":
-        ticks = pd.read_csv("c:/個股拍/" + str(stocno) + "/" + thisdate.replace("-", "") + ".csv")
-        if len(ticks) != 0:
-            dayk1 = (ticks.groupby(['stoc', 'date'])
-                          .agg({'pric': ['max', 'min', 'first', 'last'], 'volume': 'sum'})
-                          .reset_index())
-            dayk1.columns = ['stoc', 'date', 'max', 'min', 'ope', 'clo', 'vol']
-            dayk1['date'] = pd.to_datetime(dayk1['date'])
-    return dayk1
 
 def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=None):
     kdpic_st2 = pd.DataFrame()
@@ -88,41 +31,39 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
         kbarst['mean_vol28'] = kbarst['vol'].rolling(28).mean()
         kbarst['mean_vol10'] = kbarst['vol'].rolling(10).mean()
         kbarst['mean_vol20'] = kbarst['vol'].rolling(20).mean()
-        kbarst['sma20'] = talib.SMA(kbarst['clo'], timeperiod=20)
-        kbarst['sma60'] = talib.SMA(kbarst['clo'], timeperiod=60)
-        kbarst['ema20'] = talib.EMA(kbarst['clo'], timeperiod=20)
-        kbarst['ema60'] = talib.EMA(kbarst['clo'], timeperiod=20)
+        kbarst['sma20'] = ta.sma(kbarst['clo'], length=20)
+        kbarst['sma60'] = ta.sma(kbarst['clo'], length=60)
         kbarst['std_30'] = kbarst['clo'].rolling(30).std()
         kbarst['vol_std_30'] = kbarst['vol'].rolling(30).std()
         kbarst['vol_mean_30'] = kbarst['vol'].rolling(30).mean()
-        kbarst['atr_30'] = talib.ATR(kbarst['max'], kbarst['min'], kbarst['clo'], timeperiod=30)
-        kbarst['atr_mean_30'] = talib.SMA(kbarst['atr_30'], timeperiod=30)
-        macd, macdsignal, macdhist = talib.MACD(kbarst['clo'], fastperiod=12, slowperiod=26, signalperiod=9)
-        kbarst['macd'] = macdhist
-        k, d = talib.STOCH(kbarst['max'], kbarst['min'], kbarst['clo'], fastk_period=9, slowk_period=5, slowk_matype=1, slowd_period=5, slowd_matype=1)
-        kbarst['k'] = k
-        kbarst['d'] = d
-        upperband, middleband, lowerband = talib.BBANDS(kbarst['clo'], timeperiod=20, nbdevup=2.5, nbdevdn=2.5, matype=0)
-        kbarst['bulinup'] = upperband
-        kbarst['bulinmi'] = middleband
-        kbarst['bulinlo'] = lowerband
-        kbarst['rsi'] = talib.RSI(kbarst['clo'], timeperiod=14)
-        kbarst['adx'] = talib.ADX(kbarst['max'], kbarst['min'], kbarst['clo'], timeperiod=14)
-        kbarst = kbarst.reset_index(drop=True)
-        kbarst_out = kbarst.copy()
+        kbarst['atr_30'] = ta.atr(high=kbarst['max'], low=kbarst['min'], close=kbarst['clo'], length=30)
+        kbarst['atr_mean_30'] = ta.sma(kbarst['atr_30'], length=30)
+        macd = ta.macd(kbarst['clo'])
+        kbarst['macd'] = macd['MACDh_12_26_9']
+        stoch = ta.stoch(high=kbarst['max'], low=kbarst['min'], close=kbarst['clo'])
+        kbarst['k'] = stoch['STOCHk_14_3_3']
+        kbarst['d'] = stoch['STOCHd_14_3_3']
+        bbands = ta.bbands(kbarst['clo'], length=20, std=2.5)
+        kbarst['bulinup'] = bbands['BBU_20_2.5']
+        kbarst['bulinmi'] = bbands['BBM_20_2.5']
+        kbarst['bulinlo'] = bbands['BBL_20_2.5']
+        kbarst['rsi'] = ta.rsi(kbarst['clo'], length=14)
+        adx = ta.adx(high=kbarst['max'], low=kbarst['min'], close=kbarst['clo'], length=14)
+        kbarst['adx'] = adx['ADX_14']
 
+        kbarst_out = kbarst.copy()
         for i in range(1, tracing + 1):
             if kbarst['vol'].iloc[-60:-1].mean() >= 1:
                 if len(kbarst) > 90 and len(rev_thistoc_mon) > 3:
                     condition = (
-                        (kbarst['clo'].iloc[-1] > kbarst['sma60'].iloc[-1]) & 
-                        (kbarst['mean_vol10'].iloc[-1] > kbarst['mean_vol20'].iloc[-1]) & 
-                        (((kbarst['bulinup'].iloc[-1] - kbarst['bulinlo'].iloc[-1]) / kbarst['bulinmi'].iloc[-1]) <= conditions['bollinger_width']) & 
-                        (kbarst['rsi'].iloc[-1] < conditions['rsi_max']) & 
-                        (kbarst['adx'].iloc[-1] > conditions['adx_min']) &  
-                        (kbarst['sma20'].iloc[-1] > kbarst['sma20'].iloc[-2]) & 
-                        (kbarst['std_30'].iloc[-1] < kbarst['clo'].mean() * conditions['std_threshold']) &  
-                        (kbarst['vol_std_30'].iloc[-1] < kbarst['vol_mean_30'].iloc[-1] * conditions['vol_std_threshold']) &  
+                        (kbarst['clo'].iloc[-1] > kbarst['sma60'].iloc[-1]) &
+                        (kbarst['mean_vol10'].iloc[-1] > kbarst['mean_vol20'].iloc[-1]) &
+                        (((kbarst['bulinup'].iloc[-1] - kbarst['bulinlo'].iloc[-1]) / kbarst['bulinmi'].iloc[-1]) <= conditions['bollinger_width']) &
+                        (kbarst['rsi'].iloc[-1] < conditions['rsi_max']) &
+                        (kbarst['adx'].iloc[-1] > conditions['adx_min']) &
+                        (kbarst['sma20'].iloc[-1] > kbarst['sma20'].iloc[-2]) &
+                        (kbarst['std_30'].iloc[-1] < kbarst['clo'].mean() * conditions['std_threshold']) &
+                        (kbarst['vol_std_30'].iloc[-1] < kbarst['vol_mean_30'].iloc[-1] * conditions['vol_std_threshold']) &
                         (kbarst['atr_30'].iloc[-1] < kbarst['atr_mean_30'].iloc[-1] * conditions['atr_threshold'])
                     )
                     if condition:
@@ -130,8 +71,8 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
                         kdpic_st = kdpic_st.reset_index(drop=True)
                         kdpic_st['stoc'] = kdpic_st['stoc'].astype(str)
                         rev_thistoc_mon['stocnumb'] = rev_thistoc_mon['stocnumb'].astype(str)
-                        rev_thistoc_mon['threem'] = talib.SMA(rev_thistoc_mon['thisrev'], timeperiod=3).round(2).fillna(0).astype(int)
-                        rev_thistoc_mon['sixm'] = talib.SMA(rev_thistoc_mon['thisrev'], timeperiod=6).round(2).fillna(0).astype(int)
+                        rev_thistoc_mon['threem'] = ta.sma(rev_thistoc_mon['thisrev'], length=3).round(2).fillna(0).astype(int)
+                        rev_thistoc_mon['sixm'] = ta.sma(rev_thistoc_mon['thisrev'], length=6).round(2).fillna(0).astype(int)
                         rev_thistoc_mon = rev_thistoc_mon.reset_index(drop=True)
                         kdpic_st['rev_mon'] = np.where(kdpic_st['date'].dt.day > 12, (str(kdpic_st['date'].iloc[0] - relativedelta(months=1))[0:7].replace('-', '')), (str(kdpic_st['date'].iloc[0] - relativedelta(months=2))[0:7].replace('-', '')))
                         kdpic_rev = pd.merge(kdpic_st, rev_thistoc_mon, left_on=('stoc', 'rev_mon'), right_on=('stocnumb', 'thismon'))
@@ -170,8 +111,6 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
 
 def run_analysis(tracing, conditions):
     global thisdate
-    # thisdate = datetime.datetime.now().strftime('%Y-%m-%d')
-
     kbar = pd.read_csv("D:/kbar.csv", parse_dates=['date'])
     stocno = kbar['stoc'].unique()
 
@@ -184,9 +123,7 @@ def run_analysis(tracing, conditions):
     pure_otc_all['資料日期2']=(pure_otc_all['資料日期'].dropna().astype(int)+19110000).astype(str)#換西元年準備後續轉換時間格式
     pure_otc_all['資料日期2'] = pure_otc_all['資料日期2'].str[0:4]+'-'+pure_otc_all['資料日期2'].str[4:6]+'-'+pure_otc_all['資料日期2'].str[6:8]#製造字串轉換時間格式
     pure_otc_all['資料日期2']=pd.to_datetime(pure_otc_all['資料日期2'],format='%Y-%m-%d', utc=False,errors='coerce')#轉換時間格式
-    # pure_otc_all['資料日期']=pure_otc_all['資料日期'].dt.date#轉換時間格式
     pure_otc_all=pure_otc_all[['資料日期2','股票代號', '名稱', '本益比',  '殖利率', '股價淨值比']]
-    # pure_otc.columns.tolist()+
 
     pure_tse_files = glob.glob(os.path.join(r'D:\股票舊檔\淨值', '*市淨值.csv'))
     pure_tse_all=pd.DataFrame()
@@ -201,15 +138,9 @@ def run_analysis(tracing, conditions):
                 pure_tse=pure_tse[['資料日期','股票代號', '股票名稱', '本益比',  '殖利率(%)', '股價淨值比']].rename(columns={'股票名稱':'名稱','殖利率(%)':'殖利率'})
             pure_tse_all=pd.concat([pure_tse_all,pure_tse])
     pure_tse_all=pure_tse_all.reset_index(drop=True)    
-    pure_tse_all['資料日期2']=pd.to_datetime(pure_tse_all['資料日期'], utc=False,errors='coerce')#轉換時間格式
-    # pure_tse_all['資料日期']=pure_tse_all['資料日期2'].dt.date#轉換時間格式
+    pure_tse_all['資料日期2']=pd.to_datetime(pure_tse_all['資料日期'], utc=False,errors='coerce')
     pure_tse_all=pure_tse_all.drop('資料日期',axis=1)    
-    # pure_tse_all=pure_tse_all[['資料日期','證券代號', '證券名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(columns={'證券代號':'股票代號' ,'證券名稱':'名稱','殖利率(%)':'殖利率'})
-    # pure_tse=pd.read_csv(latest_files[1])
-    # pure_tse.columns.tolist()
 
-    # pure_otc=pure_otc[['股票代號', '名稱', '本益比',  '殖利率', '股價淨值比']]
-    # pure_tse=pure_tse[['證券代號', '證券名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(columns={'證券代號':'股票代號' ,'證券名稱':'名稱','殖利率(%)':'殖利率'})
     pure=pd.concat([pure_otc_all,pure_tse_all])
     pure=pure.reset_index(drop=True)    
 
@@ -217,9 +148,7 @@ def run_analysis(tracing, conditions):
     revanue=pd.DataFrame()
     for i in range(0,36):
         rev=pd.read_csv(rev_files[len(rev_files)-1-i])
-        thismon=os.path.splitext(os.path.basename(rev_files[len(rev_files)-1-i]))[0]#rev_files[len(rev_files)-1-i]
-        # rev['thismon']=thismon
-        # rev['thismon'] = thismon
+        thismon=os.path.splitext(os.path.basename(rev_files[len(rev_files)-1-i]))[0]
         rev.insert(2, 'thismon', thismon)
         revanue=pd.concat([revanue,rev])
     revanue=revanue.sort_values(by=['公司代號','thismon'])
@@ -230,14 +159,8 @@ def run_analysis(tracing, conditions):
      '公司名稱',
      'thismon',
      '當月營收',
-     # '上月營收',
-     # '去年當月營收',
      '上月比較增減(%)',
      '去年同月增減(%)',
-     # '當月累計營收',
-     # '去年累計營收',
-     # '前期比較增減(%)',
-     # '備註'
      ]]  
     revanue=revanue.rename(columns={'公司代號':'stocnumb','公司名稱':'stocname','當月營收':'thisrev','上月比較增減(%)':'mom','去年同月增減(%)':'yoy'})
 
@@ -259,7 +182,6 @@ def run_analysis(tracing, conditions):
                     & (kdpick['per_out'] > -10) 
                     & (kdpick['benefitrat'] > -0.2) 
                     & (kdpick['benefitrat'] < 0.25) 
-                    # & (kdpick['date_out'] != datetime.datetime.strptime(thisdate, '%Y-%m-%d').date())
                     ]
 
     if len(kdpick) != 0:
@@ -280,6 +202,7 @@ def run_analysis(tracing, conditions):
     st.write(result)
     st.write('出手'+str(len(db1))+'次')
     st.write(db1)
+
 def main():
     st.title("股票分析系統")
 
