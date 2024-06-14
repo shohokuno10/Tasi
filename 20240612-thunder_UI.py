@@ -136,13 +136,13 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
                     condition = (
                         (kbarst['clo'].iloc[-1] > kbarst['sma60'].iloc[-1]) & 
                         (kbarst['mean_vol10'].iloc[-1] > kbarst['mean_vol20'].iloc[-1]) & 
-                        (((kbarst['bulinup'].iloc[-1] - kbarst['bulinlo'].iloc[-1]) / kbarst['bulinmi'].iloc[-1]) <= 0.08) & 
-                        (kbarst['rsi'].iloc[-1] < 70) & 
-                        (kbarst['adx'].iloc[-1] > 25) &  
+                        (((kbarst['bulinup'].iloc[-1] - kbarst['bulinlo'].iloc[-1]) / kbarst['bulinmi'].iloc[-1]) <= conditions['bollinger_width']) & 
+                        (kbarst['rsi'].iloc[-1] < conditions['rsi_max']) & 
+                        (kbarst['adx'].iloc[-1] > conditions['adx_min']) &  
                         (kbarst['sma20'].iloc[-1] > kbarst['sma20'].iloc[-2]) & 
-                        (kbarst['std_30'].iloc[-1] < kbarst['clo'].mean() * 1) &  
-                        (kbarst['vol_std_30'].iloc[-1] < kbarst['vol_mean_30'].iloc[-1] * 10) &  
-                        (kbarst['atr_30'].iloc[-1] < kbarst['atr_mean_30'].iloc[-1] * 10)
+                        (kbarst['std_30'].iloc[-1] < kbarst['clo'].mean() * conditions['std_threshold']) &  
+                        (kbarst['vol_std_30'].iloc[-1] < kbarst['vol_mean_30'].iloc[-1] * conditions['vol_std_threshold']) &  
+                        (kbarst['atr_30'].iloc[-1] < kbarst['atr_mean_30'].iloc[-1] * conditions['atr_threshold'])
                     )
                     if condition:
                         kdpic_st = kbarst.iloc[-1:]
