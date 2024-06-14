@@ -132,7 +132,7 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
 
         for i in range(1, tracing + 1):
             if kbarst['vol'].iloc[-60:-1].mean() >= 1:
-                if len(kbarst) > 20 and len(rev_thistoc_mon) > 3:
+                if len(kbarst) > 90 and len(rev_thistoc_mon) > 3:
                     condition = (
                         (kbarst['clo'].iloc[-1] > kbarst['sma60'].iloc[-1]) & 
                         (kbarst['mean_vol10'].iloc[-1] > kbarst['mean_vol20'].iloc[-1]) & 
