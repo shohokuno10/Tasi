@@ -1,12 +1,51 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import pandas_ta as ta
+import multiprocessing
 import datetime
+from functools import partial
+import os
 from dateutil.relativedelta import relativedelta
 import glob
 import requests
-import os
+import subprocess
+import sys
+import io
+
+# 安裝 pandas_ta
+subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas_ta"])
+import pandas_ta as ta
+
+# Function to download file from GitHub
+def download_file_from_github(url):
+    response = requests.get(url)
+    return pd.read_csv(io.StringIO(response.text))
+
+# Function to download multiple files from GitHub and concatenate them
+def download_and_concat_files(base_url, folder_name, prefix):
+    response = requests.get(f"https://api.github.com/repos/shohokuno10/Tsai/contents/{folder_name}")
+    files = response.json()
+    dataframes = []
+    for file in files:
+        if file['name'].endswith('.csv') and file['name'].startswith(prefix):
+            file_url = file['download_url']
+            df = download_file_from_github(file_url)
+            dataframes.append(df)
+    return pd.concat(dataframes, ignore_index=True)
+
+# Base URLs
+kbar_url = 'https://github.com/shohokuno10/Tsai/raw/main/kbar'
+revenue_base_url = 'https://github.com/shohokuno10/Tsai/raw/main/營收'
+pure_otc_base_url = 'https://github.com/shohokuno10/Tsai/raw/main/淨值'
+pure_tse_base_url = 'https://github.com/shohokuno10/Tsai/raw/main/淨值'
+
+# Download and concatenate data
+#kbar_url = 'https://github.com/shohokuno10/Tsai/raw/main/kbar.csv'
+#kbar = download_file_from_github(kbar_url)
+kbar = download_and_concat_files(kbar_url, 'kbar', '2024')
+revanue = download_and_concat_files(revenue_base_url, '營收', '2024')
+pure_otc = download_and_concat_files(pure_otc_base_url, 'pure_otc', 'pure_otc')
+pure_tse = download_and_concat_files(pure_tse_base_url, 'pure_tse', 'pure_tse')
 
 np.set_printoptions(suppress=True)
 pd.set_option('display.float_format', '{:.0f}'.format)
@@ -22,6 +61,19 @@ def lineNotifyMessage(token, msg):
     r = requests.post("https://notify-api.line.me/api/notify", headers=headers, params=payload)
     return r.status_code
 
+def nowtimeKBAR(stocno):
+    dayk1 = pd.DataFrame()
+    file_list = os.listdir("c:/個股拍/" + str(stocno) + "/")
+    if file_list and file_list[-1] == thisdate.replace("-", "") + ".csv":
+        ticks = pd.read_csv("c:/個股拍/" + str(stocno) + "/" + thisdate.replace("-", "") + ".csv")
+        if len(ticks) != 0:
+            dayk1 = (ticks.groupby(['stoc', 'date'])
+                          .agg({'pric': ['max', 'min', 'first', 'last'], 'volume': 'sum'})
+                          .reset_index())
+            dayk1.columns = ['stoc', 'date', 'max', 'min', 'ope', 'clo', 'vol']
+            dayk1['date'] = pd.to_datetime(dayk1['date'])
+    return dayk1
+
 def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=None):
     kdpic_st2 = pd.DataFrame()
     kbarst = kbarst.reset_index(drop=True)
@@ -33,37 +85,33 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
         kbarst['mean_vol20'] = kbarst['vol'].rolling(20).mean()
         kbarst['sma20'] = ta.sma(kbarst['clo'], length=20)
         kbarst['sma60'] = ta.sma(kbarst['clo'], length=60)
+        kbarst['ema20'] = ta.ema(kbarst['clo'], length=20)
+        kbarst['ema60'] = ta.ema(kbarst['clo'], length=60)
         kbarst['std_30'] = kbarst['clo'].rolling(30).std()
         kbarst['vol_std_30'] = kbarst['vol'].rolling(30).std()
         kbarst['vol_mean_30'] = kbarst['vol'].rolling(30).mean()
-        kbarst['atr_30'] = ta.atr(high=kbarst['max'], low=kbarst['min'], close=kbarst['clo'], length=30)
+        kbarst['atr_30'] = ta.atr(kbarst['max'], kbarst['min'], kbarst['clo'], length=30)
         kbarst['atr_mean_30'] = ta.sma(kbarst['atr_30'], length=30)
-        macd = ta.macd(kbarst['clo'])
-        kbarst['macd'] = macd['MACDh_12_26_9']
-        stoch = ta.stoch(high=kbarst['max'], low=kbarst['min'], close=kbarst['clo'])
-        kbarst['k'] = stoch['STOCHk_14_3_3']
-        kbarst['d'] = stoch['STOCHd_14_3_3']
-        bbands = ta.bbands(kbarst['clo'], length=20, std=2.5)
-        kbarst['bulinup'] = bbands['BBU_20_2.5']
-        kbarst['bulinmi'] = bbands['BBM_20_2.5']
-        kbarst['bulinlo'] = bbands['BBL_20_2.5']
+        kbarst['macd'], kbarst['macdsignal'], kbarst['macdhist'] = ta.macd(kbarst['clo'], fast=12, slow=26, signal=9)
+        kbarst['k'], kbarst['d'] = ta.stoch(kbarst['max'], kbarst['min'], kbarst['clo'], fastk=9, slowk=5, slowd=5)
+        kbarst['bulinup'], kbarst['bulinmi'], kbarst['bulinlo'] = ta.bbands(kbarst['clo'], length=20, std=2.5)
         kbarst['rsi'] = ta.rsi(kbarst['clo'], length=14)
-        adx = ta.adx(high=kbarst['max'], low=kbarst['min'], close=kbarst['clo'], length=14)
-        kbarst['adx'] = adx['ADX_14']
-
+        kbarst['adx'] = ta.adx(kbarst['max'], kbarst['min'], kbarst['clo'], length=14)
+        kbarst = kbarst.reset_index(drop=True)
         kbarst_out = kbarst.copy()
+
         for i in range(1, tracing + 1):
             if kbarst['vol'].iloc[-60:-1].mean() >= 1:
                 if len(kbarst) > 90 and len(rev_thistoc_mon) > 3:
                     condition = (
-                        (kbarst['clo'].iloc[-1] > kbarst['sma60'].iloc[-1]) &
-                        (kbarst['mean_vol10'].iloc[-1] > kbarst['mean_vol20'].iloc[-1]) &
-                        (((kbarst['bulinup'].iloc[-1] - kbarst['bulinlo'].iloc[-1]) / kbarst['bulinmi'].iloc[-1]) <= conditions['bollinger_width']) &
-                        (kbarst['rsi'].iloc[-1] < conditions['rsi_max']) &
-                        (kbarst['adx'].iloc[-1] > conditions['adx_min']) &
-                        (kbarst['sma20'].iloc[-1] > kbarst['sma20'].iloc[-2]) &
-                        (kbarst['std_30'].iloc[-1] < kbarst['clo'].mean() * conditions['std_threshold']) &
-                        (kbarst['vol_std_30'].iloc[-1] < kbarst['vol_mean_30'].iloc[-1] * conditions['vol_std_threshold']) &
+                        (kbarst['clo'].iloc[-1] > kbarst['sma60'].iloc[-1]) & 
+                        (kbarst['mean_vol10'].iloc[-1] > kbarst['mean_vol20'].iloc[-1]) & 
+                        (((kbarst['bulinup'].iloc[-1] - kbarst['bulinlo'].iloc[-1]) / kbarst['bulinmi'].iloc[-1]) <= conditions['bollinger_width']) & 
+                        (kbarst['rsi'].iloc[-1] < conditions['rsi_max']) & 
+                        (kbarst['adx'].iloc[-1] > conditions['adx_min']) &  
+                        (kbarst['sma20'].iloc[-1] > kbarst['sma20'].iloc[-2]) & 
+                        (kbarst['std_30'].iloc[-1] < kbarst['clo'].mean() * conditions['std_threshold']) &  
+                        (kbarst['vol_std_30'].iloc[-1] < kbarst['vol_mean_30'].iloc[-1] * conditions['vol_std_threshold']) &  
                         (kbarst['atr_30'].iloc[-1] < kbarst['atr_mean_30'].iloc[-1] * conditions['atr_threshold'])
                     )
                     if condition:
@@ -111,10 +159,12 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
 
 def run_analysis(tracing, conditions):
     global thisdate
-    kbar = pd.read_csv("D:/kbar.csv", parse_dates=['date'])
+    # thisdate = datetime.datetime.now().strftime('%Y-%m-%d')
+
+    kbar = pd.read_csv("kbar.csv", parse_dates=['date'])
     stocno = kbar['stoc'].unique()
 
-    pure_otc_files = glob.glob(os.path.join(r'D:\股票舊檔\淨值', '*櫃淨值.csv'))
+    pure_otc_files = glob.glob(os.path.join('pure_otc.csv'))
     pure_otc_all=pd.DataFrame()
     for i in range(len(pure_otc_files)):
         pure_otc=pd.read_csv(pure_otc_files[i])
@@ -125,7 +175,7 @@ def run_analysis(tracing, conditions):
     pure_otc_all['資料日期2']=pd.to_datetime(pure_otc_all['資料日期2'],format='%Y-%m-%d', utc=False,errors='coerce')#轉換時間格式
     pure_otc_all=pure_otc_all[['資料日期2','股票代號', '名稱', '本益比',  '殖利率', '股價淨值比']]
 
-    pure_tse_files = glob.glob(os.path.join(r'D:\股票舊檔\淨值', '*市淨值.csv'))
+    pure_tse_files = glob.glob(os.path.join('pure_tse.csv'))
     pure_tse_all=pd.DataFrame()
     for i in range(len(pure_tse_files)):
         if os.path.getsize(pure_tse_files[i]) > 2:
@@ -138,13 +188,13 @@ def run_analysis(tracing, conditions):
                 pure_tse=pure_tse[['資料日期','股票代號', '股票名稱', '本益比',  '殖利率(%)', '股價淨值比']].rename(columns={'股票名稱':'名稱','殖利率(%)':'殖利率'})
             pure_tse_all=pd.concat([pure_tse_all,pure_tse])
     pure_tse_all=pure_tse_all.reset_index(drop=True)    
-    pure_tse_all['資料日期2']=pd.to_datetime(pure_tse_all['資料日期'], utc=False,errors='coerce')
+    pure_tse_all['資料日期2']=pd.to_datetime(pure_tse_all['資料日期'], utc=False,errors='coerce')#轉換時間格式
     pure_tse_all=pure_tse_all.drop('資料日期',axis=1)    
 
     pure=pd.concat([pure_otc_all,pure_tse_all])
     pure=pure.reset_index(drop=True)    
 
-    rev_files = glob.glob(os.path.join(r'D:\營收', '*.csv'))
+    rev_files = glob.glob(os.path.join('revanue.csv'))
     revanue=pd.DataFrame()
     for i in range(0,36):
         rev=pd.read_csv(rev_files[len(rev_files)-1-i])
@@ -182,6 +232,7 @@ def run_analysis(tracing, conditions):
                     & (kdpick['per_out'] > -10) 
                     & (kdpick['benefitrat'] > -0.2) 
                     & (kdpick['benefitrat'] < 0.25) 
+                    # & (kdpick['date_out'] != datetime.datetime.strptime(thisdate, '%Y-%m-%d').date())
                     ]
 
     if len(kdpick) != 0:
