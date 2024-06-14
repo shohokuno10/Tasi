@@ -74,7 +74,7 @@ def download_and_concat_files_df_rev(folder_name,endwith):
 np.set_printoptions(suppress=True)
 pd.set_option('display.float_format', '{:.0f}'.format)
 timestart = datetime.datetime.now()
-thisdate = '2024-05-27'
+thisdate = '2024-06-13'
 
 def lineNotifyMessage(token, msg):
     headers = {
