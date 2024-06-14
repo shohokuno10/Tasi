@@ -132,22 +132,22 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
 
         for i in range(1, tracing + 1):
             if kbarst['vol'].iloc[-60:-1].mean() >= 1:
-                if len(kbarst) > 60 and len(rev_thistoc_mon) > 3:
+                if len(kbarst) > 30 and len(rev_thistoc_mon) > 3:
                     condition = (
                         (kbarst['clo'].iloc[-1] > kbarst['sma60'].iloc[-1]) & 
                         (kbarst['mean_vol10'].iloc[-1] > kbarst['mean_vol20'].iloc[-1]) & 
-                        (((kbarst['bulinup'].iloc[-1] - kbarst['bulinlo'].iloc[-1]) / kbarst['bulinmi'].iloc[-1]) <= conditions['bollinger_width']) & 
-                        (kbarst['rsi'].iloc[-1] < conditions['rsi_max']) & 
-                        (kbarst['adx'].iloc[-1] > conditions['adx_min']) &  
+                        (((kbarst['bulinup'].iloc[-1] - kbarst['bulinlo'].iloc[-1]) / kbarst['bulinmi'].iloc[-1]) <= 0.08) & 
+                        (kbarst['rsi'].iloc[-1] < 70) & 
+                        (kbarst['adx'].iloc[-1] > 25) &  
                         (kbarst['sma20'].iloc[-1] > kbarst['sma20'].iloc[-2]) & 
-                        (kbarst['std_30'].iloc[-1] < kbarst['clo'].mean() * conditions['std_threshold']) &  
-                        (kbarst['vol_std_30'].iloc[-1] < kbarst['vol_mean_30'].iloc[-1] * conditions['vol_std_threshold']) &  
-                        (kbarst['atr_30'].iloc[-1] < kbarst['atr_mean_30'].iloc[-1] * conditions['atr_threshold'])
+                        (kbarst['std_30'].iloc[-1] < kbarst['clo'].mean() * 1) &  
+                        (kbarst['vol_std_30'].iloc[-1] < kbarst['vol_mean_30'].iloc[-1] * 10) &  
+                        (kbarst['atr_30'].iloc[-1] < kbarst['atr_mean_30'].iloc[-1] * 10)
                     )
                     if condition:
                         kdpic_st = kbarst.iloc[-1:]
                         kdpic_st = kdpic_st.reset_index(drop=True)
-                        kdpic_st['stoc'] = kdpic_st['stoc'].astype(str)
+                        kdpic_st['stoc'] = kdpic_st['stoc'].astype(int).astype(str)
                         rev_thistoc_mon['stocnumb'] = rev_thistoc_mon['stocnumb'].astype(str)
                         rev_thistoc_mon['threem'] = ta.sma(rev_thistoc_mon['thisrev'], length=3).round(2).fillna(0).astype(int)
                         rev_thistoc_mon['sixm'] = ta.sma(rev_thistoc_mon['thisrev'], length=6).round(2).fillna(0).astype(int)
