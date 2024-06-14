@@ -118,15 +118,21 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
         kbarst['atr_mean_30'] = ta.sma(kbarst['atr_30'], length=30)
         kbarst['macd'], kbarst['macdsignal'], kbarst['macdhist'] = ta.macd(kbarst['clo'], fast=12, slow=26, signal=9)
         kbarst['k'], kbarst['d'] = ta.stoch(kbarst['max'], kbarst['min'], kbarst['clo'], fastk=9, slowk=5, slowd=5)
-        kbarst['bulinup'], kbarst['bulinmi'], kbarst['bulinlo'] = ta.bbands(kbarst['clo'], length=20, std=2.5)
+        # kbarst['bulinup'], kbarst['bulinmi'], kbarst['bulinlo'] = ta.bbands(kbarst['clo'], length=20, std=2.5)
+        bbands_df = ta.bbands(kbarst['clo'], length=20, std=2.5)
+        kbarst['bulinup'] = bbands_df['BBU_20_2.5']
+        kbarst['bulinmi'] = bbands_df['BBM_20_2.5']
+        kbarst['bulinlo'] = bbands_df['BBL_20_2.5']
         kbarst['rsi'] = ta.rsi(kbarst['clo'], length=14)
-        kbarst['adx'] = ta.adx(kbarst['max'], kbarst['min'], kbarst['clo'], length=14)
+        # kbarst['adx'] = ta.adx(kbarst['max'], kbarst['min'], kbarst['clo'], length=14)
+        adx_df = ta.adx(kbarst['max'], kbarst['min'], kbarst['clo'], length=14)
+        kbarst['adx'] = adx_df['ADX_14']
         kbarst = kbarst.reset_index(drop=True)
         kbarst_out = kbarst.copy()
 
         for i in range(1, tracing + 1):
             if kbarst['vol'].iloc[-60:-1].mean() >= 1:
-                if len(kbarst) > 90 and len(rev_thistoc_mon) > 3:
+                if len(kbarst) > 20 and len(rev_thistoc_mon) > 3:
                     condition = (
                         (kbarst['clo'].iloc[-1] > kbarst['sma60'].iloc[-1]) & 
                         (kbarst['mean_vol10'].iloc[-1] > kbarst['mean_vol20'].iloc[-1]) & 
