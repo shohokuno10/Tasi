@@ -272,7 +272,9 @@ def run_analysis(tracing, conditions):
                     ]
 
     if len(kdpick) != 0:
-        idid = pd.read_csv('d:/個股號產業2.csv')
+        #idid = pd.read_csv('d:/個股號產業2.csv')
+        idid_url = 'https://raw.githubusercontent.com/shohokuno10/Tasi/main/%E5%80%8B%E8%82%A1%E8%99%9F%E7%94%A2%E6%A5%AD2.csv'
+        idid = download_file_from_github(idid_url)
         idid['stockid'] = idid['stockid'].astype(str)
         kdpick_id = kdpick.merge(idid, left_on='stoc', right_on='stockid', how='left')
         kdpick_id['holdingday'] = (pd.to_datetime(kdpick_id['date_out']) - pd.to_datetime(kdpick_id['date'])).dt.days
