@@ -14,23 +14,23 @@ def download_file_from_github(url):
     return pd.read_csv(io.StringIO(response.text))
 
 # Function to download multiple files from GitHub and concatenate them
-def download_and_concat_files_df(folder_name, endwith):
+def download_and_concat_files_df(folder_name, end):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
     files = response.json()
     dataframes = pd.DataFrame()
     for file in files:
-        if file['name'].endswith(endwith):
+        if file['name'].endswith(end):
             file_url = file['download_url']
             df = download_file_from_github(file_url)
             dataframes = pd.concat([dataframes, df])
     return dataframes
 
-def download_and_concat_files_df_tse(folder_name, endwith):
+def download_and_concat_files_df_tse(folder_name, end):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
     files = response.json()
     dataframes = pd.DataFrame()
     for file in files:
-        if file['name'].endswith(endwith):
+        if file['name'].endswith(end):
             file_url = file['download_url']
             df = download_file_from_github(file_url)
             datatime = file['name'][0:8]
@@ -42,12 +42,12 @@ def download_and_concat_files_df_tse(folder_name, endwith):
             dataframes = pd.concat([dataframes, df])
     return dataframes
 
-def download_and_concat_files_df_rev(folder_name, endwith):
+def download_and_concat_files_df_rev(folder_name, end):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
     files = response.json()
     dataframes = pd.DataFrame()
     for file in files:
-        if file['name'].endswith(endwith):
+        if file['name'].endswith(end):
             file_url = file['download_url']
             df = download_file_from_github(file_url)
             thismon = file['name'][0:6]
@@ -149,19 +149,19 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
 
 def run_analysis(tracing, conditions):
     global thisdate
-    kbar = download_and_concat_files_df(folder_name='kbar', endwith='csv')
+    kbar = download_and_concat_files_df('kbar', 'csv')
     kbar['date'] = pd.to_datetime(kbar['date'])
     stocno = kbar['stoc'].unique()
     thisdate = kbar['date'].max().date()
     
-    pure_otc_all = download_and_concat_files_df('淨值', '櫃淨值.csv')
+    pure_otc_all = download_and_concat_files_df('淨值', "櫃淨值.csv")
     pure_otc_all = pure_otc_all.reset_index(drop=True)
     pure_otc_all['資料日期2'] = (pure_otc_all['資料日期'].dropna().astype(int) + 19110000).astype(str)
     pure_otc_all['資料日期2'] = pure_otc_all['資料日期2'].str[0:4] + '-' + pure_otc_all['資料日期2'].str[4:6] + '-' + pure_otc_all['資料日期2'].str[6:8]
     pure_otc_all['資料日期2'] = pd.to_datetime(pure_otc_all['資料日期2'], format='%Y-%m-%d', utc=False, errors='coerce')
     pure_otc_all = pure_otc_all[['資料日期2', '股票代號', '名稱', '本益比', '殖利率', '股價淨值比']]
     
-    pure_tse_all = download_and_concat_files_df_tse('淨值', '市淨值.csv')
+    pure_tse_all = download_and_concat_files_df_tse('淨值', "市淨值.csv")
     pure_tse_all = pure_tse_all.reset_index(drop=True)    
     pure_tse_all['資料日期2'] = pd.to_datetime(pure_tse_all['資料日期'], utc=False, errors='coerce')
     pure_tse_all = pure_tse_all.drop('資料日期', axis=1)    
@@ -169,7 +169,7 @@ def run_analysis(tracing, conditions):
     pure = pd.concat([pure_otc_all, pure_tse_all])
     pure = pure.reset_index(drop=True)    
 
-    revanue = download_and_concat_files_df_rev('營收', '.csv')
+    revanue = download_and_concat_files_df_rev('營收', 'csv')
     revanue = revanue.sort_values(by=['公司代號', 'thismon'])
     revanue = revanue[~revanue['公司代號'].isin(['全部國內上櫃公司合計', '全部國內上市公司合計'])]
     revanue.reset_index(drop=True, inplace=True)
