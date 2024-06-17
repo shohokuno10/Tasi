@@ -188,7 +188,7 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
     return kdpic_st2
 
 def run_analysis(tracing, conditions):
-    #global thisdate
+    global thisdate
     # thisdate = datetime.datetime.now().strftime('%Y-%m-%d')
     kbar = download_and_concat_files_df('kbar', '.csv')
     kbar['date']=pd.to_datetime(kbar['date'])
@@ -197,7 +197,7 @@ def run_analysis(tracing, conditions):
     #kbar = pd.read_csv("kbar.csv", parse_dates=['date'])
     stocno = kbar['stoc'].unique()
     thisdate=kbar['date'].max().date()
-    global thisdate
+    
     pure_otc_all = download_and_concat_files_df('淨值', '櫃淨值.csv')
 
     #pure_otc_files = glob.glob(os.path.join('pure_otc.csv'))
