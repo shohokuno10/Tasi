@@ -190,7 +190,7 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
 def run_analysis(tracing, conditions):
     global thisdate
     # thisdate = datetime.datetime.now().strftime('%Y-%m-%d')
-    kbar = download_and_concat_files_df('kbar', '.csv')
+    kbar = download_and_concat_files_df(folder_name='kbar', endwith='.csv')
     kbar['date']=pd.to_datetime(kbar['date'])
 
 
