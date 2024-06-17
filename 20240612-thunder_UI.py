@@ -196,7 +196,7 @@ def run_analysis(tracing, conditions):
 
     #kbar = pd.read_csv("kbar.csv", parse_dates=['date'])
     stocno = kbar['stoc'].unique()
-    thisdate=kbar['date'].max().date()
+    thisdate=str(kbar['date'].max().date())
     
     pure_otc_all = download_and_concat_files_df('淨值', '櫃淨值.csv')
 
