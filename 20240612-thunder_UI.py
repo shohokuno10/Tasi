@@ -27,7 +27,7 @@ def download_and_concat_files_df(folder_name,endwith):
     files = response.json()
     dataframes = pd.DataFrame()
     for file in files:
-        if file['name'].endswith(endwith):  #.startwith()
+        if file['name'].endswith(endwith):#.startwith()
             file_url = file['download_url']
             df = download_file_from_github(file_url)
             dataframes = pd.concat([dataframes,df])
@@ -190,7 +190,7 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
 def run_analysis(tracing, conditions):
     global thisdate
     # thisdate = datetime.datetime.now().strftime('%Y-%m-%d')
-    kbar = download_and_concat_files_df(folder_name='kbar', endwith='csv')
+    kbar = download_and_concat_files_df('kbar', '.csv')
     kbar['date']=pd.to_datetime(kbar['date'])
 
 
@@ -198,7 +198,7 @@ def run_analysis(tracing, conditions):
     stocno = kbar['stoc'].unique()
     thisdate=str(kbar['date'].max().date())
     
-    pure_otc_all = download_and_concat_files_df(folder_name='淨值', endwith="櫃淨值.csv")
+    pure_otc_all = download_and_concat_files_df('淨值', '櫃淨值.csv')
 
     #pure_otc_files = glob.glob(os.path.join('pure_otc.csv'))
     #pure_otc_all=pd.DataFrame()
