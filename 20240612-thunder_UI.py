@@ -74,7 +74,7 @@ def download_and_concat_files_df_rev(folder_name,endwith):
 np.set_printoptions(suppress=True)
 pd.set_option('display.float_format', '{:.0f}'.format)
 timestart = datetime.datetime.now()
-thisdate = '2024-06-13'
+#thisdate = '2024-06-14'
 
 def lineNotifyMessage(token, msg):
     headers = {
@@ -188,7 +188,7 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
     return kdpic_st2
 
 def run_analysis(tracing, conditions):
-    global thisdate
+    #global thisdate
     # thisdate = datetime.datetime.now().strftime('%Y-%m-%d')
     kbar = download_and_concat_files_df('kbar', '.csv')
     kbar['date']=pd.to_datetime(kbar['date'])
@@ -196,7 +196,8 @@ def run_analysis(tracing, conditions):
 
     #kbar = pd.read_csv("kbar.csv", parse_dates=['date'])
     stocno = kbar['stoc'].unique()
-
+    thisdate=kbar['date'].max().date()
+    global thisdate
     pure_otc_all = download_and_concat_files_df('淨值', '櫃淨值.csv')
 
     #pure_otc_files = glob.glob(os.path.join('pure_otc.csv'))
@@ -286,7 +287,7 @@ def run_analysis(tracing, conditions):
         result = f'勝率 : {int(winrate)}%\n扣金控勝率：{int(winrate2)}%'
     else:
         result = '沒有出手'
-
+    st.write('資料日期'+thisdate)
     st.write("分析結果")
     st.write(result)
     st.write('出手'+str(len(db1))+'次')
