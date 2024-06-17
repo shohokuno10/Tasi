@@ -27,7 +27,7 @@ def download_and_concat_files_df(folder_name,endwith):
     files = response.json()
     dataframes = pd.DataFrame()
     for file in files:
-        if file['name'].endswith(endwith):#.startwith()
+        if file['name'].endswith(endwith):  #.startwith()
             file_url = file['download_url']
             df = download_file_from_github(file_url)
             dataframes = pd.concat([dataframes,df])
