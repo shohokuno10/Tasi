@@ -1,11 +1,19 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import multiprocessing
 import datetime
-from functools import partial
-import requests
-import io
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+import os
+import glob
+import requests
+import subprocess
+import sys
+import io
+
+# 安装 pandas_ta
+subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas_ta"])
 import pandas_ta as ta
 
 # Function to download file from GitHub
