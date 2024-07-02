@@ -1,19 +1,13 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import multiprocessing
 import datetime
-from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 import os
-import glob
 import requests
-import subprocess
-import sys
 import io
+from concurrent.futures import ThreadPoolExecutor
 
-# 安装 pandas_ta
-subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas_ta"])
 import pandas_ta as ta
 
 # Function to download file from GitHub
@@ -22,18 +16,18 @@ def download_file_from_github(url):
     return pd.read_csv(io.StringIO(response.text))
 
 # Function to download multiple files from GitHub and concatenate them
-def download_and_concat_files_df(folder_name, endwith):
+def download_and_concat_files_df(folder_name,endwith):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
     files = response.json()
     dataframes = pd.DataFrame()
     for file in files:
-        if file['name'].endswith(endwith):
+        if file['name'].endswith(endwith):#.startwith()
             file_url = file['download_url']
             df = download_file_from_github(file_url)
-            dataframes = pd.concat([dataframes, df])
+            dataframes = pd.concat([dataframes,df])
     return dataframes
 
-def download_and_concat_files_df_tse(folder_name, endwith):
+def download_and_concat_files_df_tse(folder_name,endwith):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
     files = response.json()
     dataframes = pd.DataFrame()
@@ -41,18 +35,16 @@ def download_and_concat_files_df_tse(folder_name, endwith):
         if file['name'].endswith(endwith):
             file_url = file['download_url']
             df = download_file_from_github(file_url)
-            datatime = file['name'][0:8]
-            df.insert(0, '資料日期', datatime)
+            datatime=file['name'][0:8]
+            df.insert(0,'資料日期',datatime)
             if '證券代號' in df.columns:
-                df = df[['資料日期', '證券代號', '證券名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(
-                    columns={'證券代號': '股票代號', '證券名稱': '名稱', '殖利率(%)': '殖利率'})
+                df=df[['資料日期','證券代號', '證券名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(columns={'證券代號':'股票代號' ,'證券名稱':'名稱','殖利率(%)':'殖利率'})
             else:
-                df = df[['資料日期', '股票代號', '股票名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(
-                    columns={'股票名稱': '名稱', '殖利率(%)': '殖利率'})
-            dataframes = pd.concat([dataframes, df])
+                df=df[['資料日期','股票代號', '股票名稱', '本益比',  '殖利率(%)', '股價淨值比']].rename(columns={'股票名稱':'名稱','殖利率(%)':'殖利率'})
+            dataframes = pd.concat([dataframes,df])
     return dataframes
 
-def download_and_concat_files_df_rev(folder_name, endwith):
+def download_and_concat_files_df_rev(folder_name,endwith):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
     files = response.json()
     dataframes = pd.DataFrame()
@@ -60,14 +52,36 @@ def download_and_concat_files_df_rev(folder_name, endwith):
         if file['name'].endswith(endwith):
             file_url = file['download_url']
             df = download_file_from_github(file_url)
-            thismon = file['name'][0:6]
+            thismon=file['name'][0:6]
             df.insert(2, 'thismon', thismon)
-            dataframes = pd.concat([dataframes, df])
+            dataframes = pd.concat([dataframes,df])
     return dataframes
 
 np.set_printoptions(suppress=True)
 pd.set_option('display.float_format', '{:.0f}'.format)
 timestart = datetime.datetime.now()
+
+def lineNotifyMessage(token, msg):
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    payload = {'message': msg}
+    r = requests.post("https://notify-api.line.me/api/notify", headers=headers, params=payload)
+    return r.status_code
+
+def nowtimeKBAR(stocno):
+    dayk1 = pd.DataFrame()
+    file_list = os.listdir("c:/個股拍/" + str(stocno) + "/")
+    if file_list and file_list[-1] == thisdate.replace("-", "") + ".csv":
+        ticks = pd.read_csv("c:/個股拍/" + str(stocno) + "/" + thisdate.replace("-", "") + ".csv")
+        if len(ticks) != 0:
+            dayk1 = (ticks.groupby(['stoc', 'date'])
+                          .agg({'pric': ['max', 'min', 'first', 'last'], 'volume': 'sum'})
+                          .reset_index())
+            dayk1.columns = ['stoc', 'date', 'max', 'min', 'ope', 'clo', 'vol']
+            dayk1['date'] = pd.to_datetime(dayk1['date'])
+    return dayk1
 
 def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=None):
     kdpic_st2 = pd.DataFrame()
@@ -88,12 +102,10 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
         kbarst['atr_30'] = ta.atr(kbarst['max'], kbarst['min'], kbarst['clo'], length=30)
         kbarst['atr_mean_30'] = ta.sma(kbarst['atr_30'], length=30)
         macd_df = ta.macd(kbarst['clo'], fast=12, slow=26, signal=9)
-        kbarst['macd'] = macd_df['MACD_12_26_9']
-        kbarst['macdsignal'] = macd_df['MACDs_12_26_9']
-        kbarst['macdhist'] = macd_df['MACDh_12_26_9']
+        kbarst['macd'] = macd_df['MACDh_12_26_9']
         stoch_df = ta.stoch(kbarst['max'], kbarst['min'], kbarst['clo'], fastk=9, slowk=5, slowd=5, mamode='ema')
-        kbarst['k'] = stoch_df['STOCHk_9_5_5']
-        kbarst['d'] = stoch_df['STOCHd_9_5_5']
+        kbarst['k_pta'] = stoch_df['STOCHk_9_5_5']
+        kbarst['d_pta'] = stoch_df['STOCHd_9_5_5']
         bbands_df = ta.bbands(kbarst['clo'], length=20, std=2.5)
         kbarst['bulinup'] = bbands_df['BBU_20_2.5']
         kbarst['bulinmi'] = bbands_df['BBM_20_2.5']
@@ -126,7 +138,7 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
                         rev_thistoc_mon['threem'] = ta.sma(rev_thistoc_mon['thisrev'], length=3).round(2).fillna(0).astype(int)
                         rev_thistoc_mon['sixm'] = ta.sma(rev_thistoc_mon['thisrev'], length=6).round(2).fillna(0).astype(int)
                         rev_thistoc_mon = rev_thistoc_mon.reset_index(drop=True)
-                        kdpic_st['rev_mon'] = np.where(kdpic_st['date'].dt.day > 12, (str(kdpic_st['date'].iloc[0] - relativedelta(months=1))[0:7].replace('-', '')), (str(kdpic_st['date'].iloc[0] - relativedelta(months=2))[0:7].replace('-', '')))
+                        kdpic_st['rev_mon'] = np.where(kdpic_st['date'].dt.day > 12, (str(kdpic_st['date'].iloc[0] - pd.DateOffset(months=1))[0:7].replace('-', '')), (str(kdpic_st['date'].iloc[0] - pd.DateOffset(months=2))[0:7].replace('-', '')))
                         kdpic_rev = pd.merge(kdpic_st, rev_thistoc_mon, left_on=('stoc', 'rev_mon'), right_on=('stocnumb', 'thismon'))
                         kdpic_rev = kdpic_rev.reset_index(drop=True)
                         pure_thiswtoc['股票代號'] = pure_thiswtoc['股票代號'].astype(str)
@@ -164,38 +176,46 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
 def run_analysis(tracing, conditions):
     global thisdate
     kbar = download_and_concat_files_df(folder_name='kbar', endwith='csv')
-    kbar['date'] = pd.to_datetime(kbar['date'])
+    kbar['date']=pd.to_datetime(kbar['date'])
+
     stocno = kbar['stoc'].unique()
     thisdate = kbar['date'].max().date()
+    
+    pure_otc_all = download_and_concat_files_df(folder_name='淨值', endwith="櫃淨值.csv")
 
-    pure_otc_all = download_and_concat_files_df('淨值', endwith="櫃淨值.csv")
     pure_otc_all = pure_otc_all.reset_index(drop=True)
     pure_otc_all['資料日期2'] = (pure_otc_all['資料日期'].dropna().astype(int) + 19110000).astype(str)
-    pure_otc_all['資料日期2'] = pure_otc_all['資料日期2'].str[0:4] + '-' + pure_otc_all['資料日期2'].str[4:6] + '-' + pure_otc_all['資料日期2'].str[6:8]
-    pure_otc_all['資料日期2'] = pd.to_datetime(pure_otc_all['資料日期2'], format='%Y-%m-%d', utc=False, errors='coerce')
-    pure_otc_all = pure_otc_all[['資料日期2', '股票代號', '名稱', '本益比', '殖利率', '股價淨值比']]
-
+    pure_otc_all['資料日期2'] = pure_otc_all['資料日期2'].str[0:4]+'-'+pure_otc_all['資料日期2'].str[4:6]+'-'+pure_otc_all['資料日期2'].str[6:8]
+    pure_otc_all['資料日期2'] = pd.to_datetime(pure_otc_all['資料日期2'],format='%Y-%m-%d', utc=False,errors='coerce')
+    pure_otc_all = pure_otc_all[['資料日期2','股票代號', '名稱', '本益比',  '殖利率', '股價淨值比']]
+    
     pure_tse_all = download_and_concat_files_df_tse('淨值', '市淨值.csv')
-    pure_tse_all = pure_tse_all.reset_index(drop=True)
-    pure_tse_all['資料日期2'] = pd.to_datetime(pure_tse_all['資料日期'], utc=False, errors='coerce')
-    pure_tse_all = pure_tse_all.drop('資料日期', axis=1)
 
-    pure = pd.concat([pure_otc_all, pure_tse_all])
-    pure = pure.reset_index(drop=True)
+    pure_tse_all = pure_tse_all.reset_index(drop=True)    
+    pure_tse_all['資料日期2'] = pd.to_datetime(pure_tse_all['資料日期'], utc=False,errors='coerce')    
+    pure_tse_all = pure_tse_all.drop('資料日期',axis=1)    
 
+    pure = pd.concat([pure_otc_all,pure_tse_all])
+    pure = pure.reset_index(drop=True)    
     revanue = download_and_concat_files_df_rev('營收', '.csv')
-    revanue = revanue.sort_values(by=['公司代號', 'thismon'])
-    revanue = revanue[~revanue['公司代號'].isin(['全部國內上櫃公司合計', '全部國內上市公司合計'])]
+    revanue = revanue.sort_values(by=['公司代號','thismon'])
+    revanue = revanue[~revanue['公司代號'].isin(['全部國內上櫃公司合計','全部國內上市公司合計'])]
     revanue = revanue.reset_index(drop=True)
     revanue['公司代號'] = revanue['公司代號'].astype(int)
-    revanue = revanue[['公司代號', '公司名稱', 'thismon', '當月營收', '上月比較增減(%)', '去年同月增減(%)']]
-    revanue = revanue.rename(columns={'公司代號': 'stocnumb', '公司名稱': 'stocname', '當月營收': 'thisrev', '上月比較增減(%)': 'mom', '去年同月增減(%)': 'yoy'})
+    revanue = revanue[['公司代號',
+     '公司名稱',
+     'thismon',
+     '當月營收',
+     '上月比較增減(%)',
+     '去年同月增減(%)',
+     ]]  
+    revanue = revanue.rename(columns={'公司代號':'stocnumb','公司名稱':'stocname','當月營收':'thisrev','上月比較增減(%)':'mom','去年同月增減(%)':'yoy'})
 
     func = partial(calculate_kd, tracing=tracing, conditions=conditions)
     params = [(kbar[kbar['stoc'] == stoc], revanue[revanue['stocnumb'] == stoc], pure[pure['股票代號'] == stoc]) for stoc in stocno]
 
-    with ProcessPoolExecutor() as pool:
-        result_list = list(pool.map(func, params))
+    with ThreadPoolExecutor() as executor:
+        result_list = list(executor.map(lambda p: func(*p), params))
 
     kdpickor = pd.concat(result_list)
     kdpick = kdpickor.reset_index(drop=True)
@@ -205,10 +225,11 @@ def run_analysis(tracing, conditions):
     kdpick['benefitrat'] = kdpick['benefit'] / kdpick['clo']
     kdpick['date'] = kdpick['date'].dt.date
     kdpick['date_out'] = kdpick['date_out'].dt.date
-    kdpick = kdpick[(kdpick['per_out'] < 10)
-                    & (kdpick['per_out'] > -10)
-                    & (kdpick['benefitrat'] > -0.2)
-                    & (kdpick['benefitrat'] < 0.25)]
+    kdpick = kdpick[(kdpick['per_out'] < 10) 
+                    & (kdpick['per_out'] > -10) 
+                    & (kdpick['benefitrat'] > -0.2) 
+                    & (kdpick['benefitrat'] < 0.25) 
+                    ]
 
     if len(kdpick) != 0:
         idid_url = 'https://raw.githubusercontent.com/shohokuno10/Tasi/main/%E5%80%8B%E8%82%A1%E8%99%9F%E7%94%A2%E6%A5%AD2.csv'
@@ -224,11 +245,10 @@ def run_analysis(tracing, conditions):
         result = f'勝率 : {int(winrate)}%\n扣金控勝率：{int(winrate2)}%'
     else:
         result = '沒有出手'
-
-    st.write('資料日期' + str(thisdate))
+    st.write('資料日期'+str(thisdate))
     st.write("分析結果")
     st.write(result)
-    st.write('出手' + str(len(db1)) + '次')
+    st.write('出手'+str(len(db1))+'次')
     st.write(db1)
 
 def main():
@@ -236,11 +256,11 @@ def main():
 
     tracing = st.number_input("回測天數", min_value=1, value=1, step=1)
     bollinger_width = st.number_input("布林帶寬度 (如0.05)", min_value=0.01, value=0.05, step=0.01)
-    rsi_max = st.number_input("RSI最大值 (乖離指標，如70)", min_value=0.01, value=70.0, step=0.01)
-    adx_min = st.number_input("ADX最小值 (強勢指標，大於25表示強趨勢)", min_value=0.01, value=25.0, step=0.01)
+    rsi_max = st.number_input("RSI最大值 (如70)", min_value=0.01, value=70.0, step=0.01)
+    adx_min = st.number_input("ADX最小值 (如25)", min_value=0.01, value=25.0, step=0.01)
     std_threshold = st.number_input("價格標準差閾值 (如0.01)", min_value=0.01, value=0.01, step=0.01)
-    vol_std_threshold = st.number_input("成交量標準差閾值 (如0.2)", min_value=0.01, value=1, step=0.01)
-    atr_threshold = st.number_input("ATR閾值 (波動性指標，如0.2)", min_value=0.01, value=1, step=0.01)
+    vol_std_threshold = st.number_input("成交量標準差閾值 (如0.2)", min_value=0.01, value=0.2, step=0.01)
+    atr_threshold = st.number_input("ATR閾值 (如0.2)", min_value=0.01, value=0.2, step=0.01)
 
     if st.button("開始分析"):
         conditions = {
