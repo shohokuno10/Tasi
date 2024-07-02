@@ -301,7 +301,7 @@ def main():
     bollinger_width = st.number_input("布林帶寬度 (如0.05)", min_value=0.01, value=0.08, step=0.01)
     rsi_max = st.number_input("RSI最大值 (如70)", min_value=0.01, value=70.0, step=0.01)
     adx_min = st.number_input("ADX最小值 (如25)", min_value=0.01, value=25.0, step=0.01)
-    std_threshold = st.number_input("價格標準差閾值 (如0.01)", min_value=0.01, value=10, step=0.01)
+    std_threshold = st.number_input("價格標準差閾值 (如0.01)", min_value=0.01, value=0.01, step=0.01)
     vol_std_threshold = st.number_input("成交量標準差閾值 (如0.2)", min_value=0.01, value=1, step=0.01)
     atr_threshold = st.number_input("123ATR閾值 (如0.2)", min_value=0.01, value=0.2, step=1)
 
