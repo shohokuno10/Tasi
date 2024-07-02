@@ -15,7 +15,7 @@ import io
 # 安裝 pandas_ta
 #subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas_ta"])
 #subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pandas_ta"])
-import pandas_ta as ta
+#import pandas_ta as ta
 
 # Function to download file from GitHub
 def download_file_from_github(url):
