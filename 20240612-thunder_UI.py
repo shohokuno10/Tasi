@@ -303,7 +303,7 @@ def main():
     adx_min = st.number_input("ADX最小值 (如25)", min_value=0.01, value=25.0, step=0.01)
     std_threshold = st.number_input("價格標準差閾值 (如0.01)", min_value=0.01, value=1.00, step=0.01)
     vol_std_threshold = st.number_input("成交量標準差閾值 (如0.2)", min_value=0.01, value=1.00, step=0.01)
-    atr_threshold = st.number_input("123ATR閾值 (如0.2)", min_value=0.01, value=1.00, step=1)
+    atr_threshold = st.number_input("123ATR閾值 (如0.2)", min_value=0.01, value=1.00, step=0.01)
 
     if st.button("開始分析"):
         conditions = {
