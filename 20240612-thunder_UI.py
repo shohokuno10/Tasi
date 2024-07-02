@@ -226,7 +226,7 @@ def run_analysis(tracing, conditions):
 def main():
     st.title("股票分析系統")
 
-    tracing = st.number_input("回測天數", min_value=1, value=1, step=1)
+    tracing = st.number_input("123321回測天數", min_value=1, value=1, step=1)
     bollinger_width = st.number_input("布林帶寬度 (如0.05)", min_value=0.01, value=0.05, step=0.01)
     rsi_max = st.number_input("RSI最大值 (如70)", min_value=0.01, value=70.0, step=0.01)
     adx_min = st.number_input("ADX最小值 (如25)", min_value=0.01, value=25.0, step=0.01)
