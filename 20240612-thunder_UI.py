@@ -3,16 +3,16 @@ import pandas as pd
 import numpy as np
 import multiprocessing
 import datetime
+from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 import os
-from dateutil.relativedelta import relativedelta
 import glob
 import requests
 import subprocess
 import sys
 import io
 
-# 安裝 pandas_ta
+# 安装 pandas_ta
 subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas_ta"])
 import pandas_ta as ta
 
@@ -22,17 +22,7 @@ def download_file_from_github(url):
     return pd.read_csv(io.StringIO(response.text))
 
 # Function to download multiple files from GitHub and concatenate them
-def download_and_concat_files_df(folder_name,endwith):
-    response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
-    files = response.json()
-    dataframes = pd.DataFrame()
-    for file in files:
-        if file['name'].endswith(endwith):#.startwith()
-            file_url = file['download_url']
-            df = download_file_from_github(file_url)
-            dataframes = pd.concat([dataframes,df])
-    return dataframes
-def download_and_concat_files_df_tse(folder_name,endwith):
+def download_and_concat_files_df(folder_name, endwith):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
     files = response.json()
     dataframes = pd.DataFrame()
@@ -40,15 +30,27 @@ def download_and_concat_files_df_tse(folder_name,endwith):
         if file['name'].endswith(endwith):
             file_url = file['download_url']
             df = download_file_from_github(file_url)
-            datatime=file['name'][0:8]
-            df.insert(0,'資料日期',datatime)
+            dataframes = pd.concat([dataframes, df])
+    return dataframes
+
+def download_and_concat_files_df_tse(folder_name, endwith):
+    response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
+    files = response.json()
+    dataframes = pd.DataFrame()
+    for file in files:
+        if file['name'].endswith(endwith):
+            file_url = file['download_url']
+            df = download_file_from_github(file_url)
+            datatime = file['name'][0:8]
+            df.insert(0, '資料日期', datatime)
             if '證券代號' in df.columns:
-                df=df[['資料日期','證券代號', '證券名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(columns={'證券代號':'股票代號' ,'證券名稱':'名稱','殖利率(%)':'殖利率'})
+                df = df[['資料日期', '證券代號', '證券名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(columns={'證券代號': '股票代號', '證券名稱': '名稱', '殖利率(%)': '殖利率'})
             else:
-                df=df[['資料日期','股票代號', '股票名稱', '本益比',  '殖利率(%)', '股價淨值比']].rename(columns={'股票名稱':'名稱','殖利率(%)':'殖利率'})
-            dataframes = pd.concat([dataframes,df])
+                df = df[['資料日期', '股票代號', '股票名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(columns={'股票名稱': '名稱', '殖利率(%)': '殖利率'})
+            dataframes = pd.concat([dataframes, df])
     return dataframes
-def download_and_concat_files_df_rev(folder_name,endwith):
+
+def download_and_concat_files_df_rev(folder_name, endwith):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
     files = response.json()
     dataframes = pd.DataFrame()
@@ -56,25 +58,14 @@ def download_and_concat_files_df_rev(folder_name,endwith):
         if file['name'].endswith(endwith):
             file_url = file['download_url']
             df = download_file_from_github(file_url)
-            thismon=file['name'][0:6]
+            thismon = file['name'][0:6]
             df.insert(2, 'thismon', thismon)
-            dataframes = pd.concat([dataframes,df])
+            dataframes = pd.concat([dataframes, df])
     return dataframes
-# Base URLs
-#kbar_url = 'https://github.com/shohokuno10/Tsai/raw/main/kbar'
-#revenue_base_url = 'https://github.com/shohokuno10/Tsai/raw/main/營收'
-#pure_otc_base_url = 'https://github.com/shohokuno10/Tsai/raw/main/淨值'
-#pure_tse_base_url = 'https://github.com/shohokuno10/Tsai/raw/main/淨值'
-
-# Download and concatenate data
-#kbar_url = 'https://github.com/shohokuno10/Tsai/raw/main/kbar.csv'
-#kbar = download_file_from_github(kbar_url)
-
 
 np.set_printoptions(suppress=True)
 pd.set_option('display.float_format', '{:.0f}'.format)
 timestart = datetime.datetime.now()
-#thisdate = '2024-06-14'
 
 def lineNotifyMessage(token, msg):
     headers = {
@@ -118,13 +109,11 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
         kbarst['atr_mean_30'] = ta.sma(kbarst['atr_30'], length=30)
         kbarst['macd'], kbarst['macdsignal'], kbarst['macdhist'] = ta.macd(kbarst['clo'], fast=12, slow=26, signal=9)
         kbarst['k'], kbarst['d'] = ta.stoch(kbarst['max'], kbarst['min'], kbarst['clo'], fastk=9, slowk=5, slowd=5)
-        # kbarst['bulinup'], kbarst['bulinmi'], kbarst['bulinlo'] = ta.bbands(kbarst['clo'], length=20, std=2.5)
         bbands_df = ta.bbands(kbarst['clo'], length=20, std=2.5)
         kbarst['bulinup'] = bbands_df['BBU_20_2.5']
         kbarst['bulinmi'] = bbands_df['BBM_20_2.5']
         kbarst['bulinlo'] = bbands_df['BBL_20_2.5']
         kbarst['rsi'] = ta.rsi(kbarst['clo'], length=14)
-        # kbarst['adx'] = ta.adx(kbarst['max'], kbarst['min'], kbarst['clo'], length=14)
         adx_df = ta.adx(kbarst['max'], kbarst['min'], kbarst['clo'], length=14)
         kbarst['adx'] = adx_df['ADX_14']
         kbarst = kbarst.reset_index(drop=True)
@@ -189,73 +178,39 @@ def calculate_kd(kbarst, rev_thistoc_mon, pure_thiswtoc, tracing=1, conditions=N
 
 def run_analysis(tracing, conditions):
     global thisdate
-    # thisdate = datetime.datetime.now().strftime('%Y-%m-%d')
-    kbar = download_and_concat_files_df('kbar', '.csv')
-    kbar['date']=pd.to_datetime(kbar['date'])
-
-
-    #kbar = pd.read_csv("kbar.csv", parse_dates=['date'])
+    kbar = download_and_concat_files_df(folder_name='kbar', endwith='csv')
+    kbar['date'] = pd.to_datetime(kbar['date'])
     stocno = kbar['stoc'].unique()
-    thisdate=str(kbar['date'].max().date())
-    
-    pure_otc_all = download_and_concat_files_df('淨值', '櫃淨值.csv')
+    thisdate = str(kbar['date'].max().date())
 
-    #pure_otc_files = glob.glob(os.path.join('pure_otc.csv'))
-    #pure_otc_all=pd.DataFrame()
-    #for i in range(len(pure_otc_files)):
-        #pure_otc=pd.read_csv(pure_otc_files[i])
-        #pure_otc_all=pd.concat([pure_otc_all,pure_otc])
-    pure_otc_all=pure_otc_all.reset_index(drop=True)
-    pure_otc_all['資料日期2']=(pure_otc_all['資料日期'].dropna().astype(int)+19110000).astype(str)#換西元年準備後續轉換時間格式
-    pure_otc_all['資料日期2'] = pure_otc_all['資料日期2'].str[0:4]+'-'+pure_otc_all['資料日期2'].str[4:6]+'-'+pure_otc_all['資料日期2'].str[6:8]#製造字串轉換時間格式
-    pure_otc_all['資料日期2']=pd.to_datetime(pure_otc_all['資料日期2'],format='%Y-%m-%d', utc=False,errors='coerce')#轉換時間格式
-    pure_otc_all=pure_otc_all[['資料日期2','股票代號', '名稱', '本益比',  '殖利率', '股價淨值比']]
-    
+    pure_otc_all = download_and_concat_files_df(folder_name='淨值', endwith="櫃淨值.csv")
+    pure_otc_all = pure_otc_all.reset_index(drop=True)
+    pure_otc_all['資料日期2'] = (pure_otc_all['資料日期'].dropna().astype(int) + 19110000).astype(str)
+    pure_otc_all['資料日期2'] = pure_otc_all['資料日期2'].str[0:4] + '-' + pure_otc_all['資料日期2'].str[4:6] + '-' + pure_otc_all['資料日期2'].str[6:8]
+    pure_otc_all['資料日期2'] = pd.to_datetime(pure_otc_all['資料日期2'], format='%Y-%m-%d', utc=False, errors='coerce')
+    pure_otc_all = pure_otc_all[['資料日期2', '股票代號', '名稱', '本益比', '殖利率', '股價淨值比']]
+
     pure_tse_all = download_and_concat_files_df_tse('淨值', '市淨值.csv')
-    #pure_tse_files = glob.glob(os.path.join('pure_tse.csv'))
-    #pure_tse_all=pd.DataFrame()
-    #for i in range(len(pure_tse_files)):
-    #    if os.path.getsize(pure_tse_files[i]) > 2:
-    #        pure_tse=pd.read_csv(pure_tse_files[i])
-    #        datatime=os.path.splitext(os.path.basename(pure_tse_files[i]))[0][0:8]
-    #        pure_tse.insert(0,'資料日期',datatime)
-    #        if '證券代號' in pure_tse.columns:
-    #            pure_tse=pure_tse[['資料日期','證券代號', '證券名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(columns={'證券代號':'股票代號' ,'證券名稱':'名稱','殖利率(%)':'殖利率'})
-    #        else:
-    #            pure_tse=pure_tse[['資料日期','股票代號', '股票名稱', '本益比',  '殖利率(%)', '股價淨值比']].rename(columns={'股票名稱':'名稱','殖利率(%)':'殖利率'})
-    #        pure_tse_all=pd.concat([pure_tse_all,pure_tse])
-    pure_tse_all=pure_tse_all.reset_index(drop=True)    
-    pure_tse_all['資料日期2']=pd.to_datetime(pure_tse_all['資料日期'], utc=False,errors='coerce')#轉換時間格式
-    pure_tse_all=pure_tse_all.drop('資料日期',axis=1)    
+    pure_tse_all = pure_tse_all.reset_index(drop=True)
+    pure_tse_all['資料日期2'] = pd.to_datetime(pure_tse_all['資料日期'], utc=False, errors='coerce')
+    pure_tse_all = pure_tse_all.drop('資料日期', axis=1)
 
-    pure=pd.concat([pure_otc_all,pure_tse_all])
-    pure=pure.reset_index(drop=True)    
+    pure = pd.concat([pure_otc_all, pure_tse_all])
+    pure = pure.reset_index(drop=True)
+
     revanue = download_and_concat_files_df_rev('營收', '.csv')
-    #rev_files = glob.glob(os.path.join('revanue.csv'))
-    #revanue=pd.DataFrame()
-    #for i in range(0,36):
-    #    rev=pd.read_csv(rev_files[len(rev_files)-1-i])
-    #   thismon=os.path.splitext(os.path.basename(rev_files[len(rev_files)-1-i]))[0]
-    #    rev.insert(2, 'thismon', thismon)
-    #    revanue=pd.concat([revanue,rev])
-    revanue=revanue.sort_values(by=['公司代號','thismon'])
-    revanue=revanue[~revanue['公司代號'].isin(['全部國內上櫃公司合計','全部國內上市公司合計'])]
-    revanue.reset_index(drop=True,inplace=True)
-    revanue['公司代號']=revanue['公司代號'].astype(int)
-    revanue=revanue[['公司代號',
-     '公司名稱',
-     'thismon',
-     '當月營收',
-     '上月比較增減(%)',
-     '去年同月增減(%)',
-     ]]  
-    revanue=revanue.rename(columns={'公司代號':'stocnumb','公司名稱':'stocname','當月營收':'thisrev','上月比較增減(%)':'mom','去年同月增減(%)':'yoy'})
+    revanue = revanue.sort_values(by=['公司代號', 'thismon'])
+    revanue = revanue[~revanue['公司代號'].isin(['全部國內上櫃公司合計', '全部國內上市公司合計'])]
+    revanue = revanue.reset_index(drop=True)
+    revanue['公司代號'] = revanue['公司代號'].astype(int)
+    revanue = revanue[['公司代號', '公司名稱', 'thismon', '當月營收', '上月比較增減(%)', '去年同月增減(%)']]
+    revanue = revanue.rename(columns={'公司代號': 'stocnumb', '公司名稱': 'stocname', '當月營收': 'thisrev', '上月比較增減(%)': 'mom', '去年同月增減(%)': 'yoy'})
 
     func = partial(calculate_kd, tracing=tracing, conditions=conditions)
     params = [(kbar[kbar['stoc'] == stoc], revanue[revanue['stocnumb'] == stoc], pure[pure['股票代號'] == stoc]) for stoc in stocno]
 
-    with multiprocessing.Pool() as pool:
-        result_list = pool.starmap(func, params)
+    with ProcessPoolExecutor() as executor:
+        result_list = list(executor.map(func, params))
 
     kdpickor = pd.concat(result_list)
     kdpick = kdpickor.reset_index(drop=True)
@@ -265,15 +220,9 @@ def run_analysis(tracing, conditions):
     kdpick['benefitrat'] = kdpick['benefit'] / kdpick['clo']
     kdpick['date'] = kdpick['date'].dt.date
     kdpick['date_out'] = kdpick['date_out'].dt.date
-    kdpick = kdpick[(kdpick['per_out'] < 10) 
-                    & (kdpick['per_out'] > -10) 
-                    & (kdpick['benefitrat'] > -0.2) 
-                    & (kdpick['benefitrat'] < 0.25) 
-                    # & (kdpick['date_out'] != datetime.datetime.strptime(thisdate, '%Y-%m-%d').date())
-                    ]
+    kdpick = kdpick[(kdpick['per_out'] < 10) & (kdpick['per_out'] > -10) & (kdpick['benefitrat'] > -0.2) & (kdpick['benefitrat'] < 0.25)]
 
     if len(kdpick) != 0:
-        #idid = pd.read_csv('d:/個股號產業2.csv')
         idid_url = 'https://raw.githubusercontent.com/shohokuno10/Tasi/main/%E5%80%8B%E8%82%A1%E8%99%9F%E7%94%A2%E6%A5%AD2.csv'
         idid = download_file_from_github(idid_url)
         idid['stockid'] = idid['stockid'].astype(str)
@@ -287,10 +236,11 @@ def run_analysis(tracing, conditions):
         result = f'勝率 : {int(winrate)}%\n扣金控勝率：{int(winrate2)}%'
     else:
         result = '沒有出手'
-    st.write('資料日期'+thisdate)
+
+    st.write('資料日期 ' + thisdate)
     st.write("分析結果")
     st.write(result)
-    st.write('出手'+str(len(db1))+'次')
+    st.write('出手 ' + str(len(db1)) + ' 次')
     st.write(db1)
 
 def main():
