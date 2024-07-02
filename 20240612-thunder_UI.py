@@ -11,7 +11,7 @@ import requests
 import subprocess
 import sys
 import io
-pip install numpy==1.26.3
+
 # 安裝 pandas_ta
 #subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas_ta"])
 #subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pandas_ta"])
