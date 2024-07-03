@@ -23,43 +23,72 @@ def download_file_from_github(url):
     return pd.read_csv(io.StringIO(response.text))
 
 # Function to download multiple files from GitHub and concatenate them
-def download_and_concat_files_df(folder_name,endwith):
+def download_and_concat_files_df(folder_name, endwith):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
-    files = response.json()
+    response.raise_for_status()  # Raise an error for bad status codes
+    try:
+        files = response.json()
+    except ValueError:
+        raise ValueError("Failed to parse response as JSON")
+
+    if not isinstance(files, list):
+        raise ValueError("Expected a list of files, got something else")
+
     dataframes = pd.DataFrame()
     for file in files:
-        if file['name'].endswith(endwith):#.startwith()
-            file_url = file['download_url']
-            df = download_file_from_github(file_url)
-            dataframes = pd.concat([dataframes,df])
+        if file.get('name', '').endswith(endwith):
+            file_url = file.get('download_url', '')
+            if file_url:
+                df = download_file_from_github(file_url)
+                dataframes = pd.concat([dataframes, df])
     return dataframes
-def download_and_concat_files_df_tse(folder_name,endwith):
+
+def download_and_concat_files_df_tse(folder_name, endwith):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
-    files = response.json()
+    response.raise_for_status()  # Raise an error for bad status codes
+    try:
+        files = response.json()
+    except ValueError:
+        raise ValueError("Failed to parse response as JSON")
+
+    if not isinstance(files, list):
+        raise ValueError("Expected a list of files, got something else")
+
     dataframes = pd.DataFrame()
     for file in files:
-        if file['name'].endswith(endwith):
-            file_url = file['download_url']
-            df = download_file_from_github(file_url)
-            datatime=file['name'][0:8]
-            df.insert(0,'資料日期',datatime)
-            if '證券代號' in df.columns:
-                df=df[['資料日期','證券代號', '證券名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(columns={'證券代號':'股票代號' ,'證券名稱':'名稱','殖利率(%)':'殖利率'})
-            else:
-                df=df[['資料日期','股票代號', '股票名稱', '本益比',  '殖利率(%)', '股價淨值比']].rename(columns={'股票名稱':'名稱','殖利率(%)':'殖利率'})
-            dataframes = pd.concat([dataframes,df])
+        if file.get('name', '').endswith(endwith):
+            file_url = file.get('download_url', '')
+            if file_url:
+                df = download_file_from_github(file_url)
+                datatime = file['name'][0:8]
+                df.insert(0, '資料日期', datatime)
+                if '證券代號' in df.columns:
+                    df = df[['資料日期', '證券代號', '證券名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(columns={'證券代號': '股票代號', '證券名稱': '名稱', '殖利率(%)': '殖利率'})
+                else:
+                    df = df[['資料日期', '股票代號', '股票名稱', '本益比', '殖利率(%)', '股價淨值比']].rename(columns={'股票名稱': '名稱', '殖利率(%)': '殖利率'})
+                dataframes = pd.concat([dataframes, df])
     return dataframes
-def download_and_concat_files_df_rev(folder_name,endwith):
+
+def download_and_concat_files_df_rev(folder_name, endwith):
     response = requests.get(f"https://api.github.com/repos/shohokuno10/Tasi/contents/{folder_name}")
-    files = response.json()
+    response.raise_for_status()  # Raise an error for bad status codes
+    try:
+        files = response.json()
+    except ValueError:
+        raise ValueError("Failed to parse response as JSON")
+
+    if not isinstance(files, list):
+        raise ValueError("Expected a list of files, got something else")
+
     dataframes = pd.DataFrame()
     for file in files:
-        if file['name'].endswith(endwith):
-            file_url = file['download_url']
-            df = download_file_from_github(file_url)
-            thismon=file['name'][0:6]
-            df.insert(2, 'thismon', thismon)
-            dataframes = pd.concat([dataframes,df])
+        if file.get('name', '').endswith(endwith):
+            file_url = file.get('download_url', '')
+            if file_url:
+                df = download_file_from_github(file_url)
+                thismon = file['name'][0:6]
+                df.insert(2, 'thismon', thismon)
+                dataframes = pd.concat([dataframes, df])
     return dataframes
 # Base URLs
 #kbar_url = 'https://github.com/shohokuno10/Tsai/raw/main/kbar'
