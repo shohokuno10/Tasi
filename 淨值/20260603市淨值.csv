@@ -1,0 +1,15 @@
+﻿"<!DOCTYPE html PUBLIC ""-//W3C//DTD XHTML 1.0 Transitional//EN"" ""http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"">"
+"<html lang=""zh-Hant-tw"">"
+	<head>
+"	  	<meta charset=""utf-8"">"
+"	  	<meta name=""viewport"" content=""width=device-width"">"
+"		<meta name=""Asset-Path"" content=""${asset}"">"
+"	  	<link href=""css/main.css"" rel=""stylesheet"">"
+"  	  	<link rel=""shortcut icon"" href=""img/favicon.ico"">"
+	  	<title>ç¶²ç«ç¶­è­·ä¸­ - èºç£è­å¸äº¤ææ</title>
+	</head>
+	<body>
+"		<div id=""layout"">"
+		</div>
+	</body>
+</html>
